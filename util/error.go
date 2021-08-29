@@ -1,9 +1,9 @@
 package util
 
-type errorString struct {
-	s string
+type ErrorString struct {
+	S string
 }
-	
-func (e *errorString) Error() string {
-	return e.s
+
+func (e *ErrorString) Error() string {
+	return e.S
 }

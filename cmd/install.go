@@ -9,13 +9,13 @@ import (
 	"path/filepath"
 	"strings"
 
-	"apkg/util"
+	"github.com/innatical/apkg/util"
 
 	"github.com/Masterminds/semver"
 	"github.com/urfave/cli/v2"
 )
 
-func Install (c *cli.Context) error {
+func Install(c *cli.Context) error {
 	if err := os.MkdirAll(c.String("root"), 0755); err != nil {
 		return err
 	}
@@ -30,14 +30,14 @@ func Install (c *cli.Context) error {
 
 	file, err := os.Open(packageFile)
 	if err != nil {
-		return &errorString{"Couldn't open file!"}
+		return &util.ErrorString{S: "Couldn't open file!"}
 	}
 	defer file.Close()
 
 	hasher := sha256.New()
 
 	if _, err := io.Copy(hasher, file); err != nil {
-    return err
+		return err
 	}
 
 	stringHash := hex.EncodeToString(hasher.Sum(nil))
@@ -54,7 +54,7 @@ func Install (c *cli.Context) error {
 	pkg, err := util.ParsePackageFile(filepath.Join(installationPath, "package.toml"))
 
 	if err != nil {
-    return err
+		return err
 	}
 
 	db, err := util.ReadDatabase(c.String("root"))
@@ -64,7 +64,7 @@ func Install (c *cli.Context) error {
 	}
 
 	if _, ok := db.Packages[pkg.Package.Name]; ok {
-		return &errorString{"Package is already installed with name " + pkg.Package.Name}
+		return &util.ErrorString{S: "Package is already installed with name " + pkg.Package.Name}
 	}
 
 	for i := range pkg.Dependencies.Required {
@@ -72,7 +72,7 @@ func Install (c *cli.Context) error {
 		splitdep := strings.Split(dependency, "@")
 
 		if _, ok := db.Packages[splitdep[0]]; !ok {
-			return &errorString{"Dependency not found: " + dependency}
+			return &util.ErrorString{S: "Dependency not found: " + dependency}
 		}
 
 		depVersion, err := semver.NewVersion(db.Packages[splitdep[0]].Package.Version)
@@ -86,7 +86,7 @@ func Install (c *cli.Context) error {
 		}
 
 		if !c.Check(depVersion) {
-			return &errorString{"Version constraint for package " + splitdep[0] + "not met. Required " + splitdep[1] + ", Found " + db.Packages[splitdep[0]].Package.Version}
+			return &util.ErrorString{S: "Version constraint for package " + splitdep[0] + "not met. Required " + splitdep[1] + ", Found " + db.Packages[splitdep[0]].Package.Version}
 		}
 	}
 

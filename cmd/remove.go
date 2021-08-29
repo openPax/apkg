@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"apkg/util"
+	"github.com/innatical/apkg/util"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -10,7 +10,7 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-func Remove (c *cli.Context) error {
+func Remove(c *cli.Context) error {
 	if err := os.MkdirAll(c.String("root"), 0755); err != nil {
 		return err
 	}
@@ -30,13 +30,13 @@ func Remove (c *cli.Context) error {
 	}
 
 	if _, ok := db.Packages[packageName]; !ok {
-		return &errorString{"Package doesn't exist"}
+		return &util.ErrorString{S: "Package doesn't exist"}
 	}
 
 	for name, pkg := range db.Packages {
 		for i := range pkg.Dependencies.Required {
 			if strings.Split(pkg.Dependencies.Required[i], "@")[0] == packageName {
-				return &errorString{ "Package " + name + " depends on " + packageName}
+				return &util.ErrorString{S: "Package " + name + " depends on " + packageName}
 			}
 		}
 	}
@@ -46,7 +46,7 @@ func Remove (c *cli.Context) error {
 	pkg, err := util.ParsePackageFile(filepath.Join(installationPath, "package.toml"))
 
 	if err != nil {
-  	return err
+		return err
 	}
 
 	if pkg.Hooks.Preremove != "" {
@@ -65,8 +65,10 @@ func Remove (c *cli.Context) error {
 		}
 	}
 
-	util.RemoveBinaries(c.String("root"), pkg)
-	
+	if err := util.RemoveBinaries(c.String("root"), pkg); err != nil {
+		return err
+	}
+
 	if pkg.Hooks.Postremove != "" {
 		if err := os.Chmod(filepath.Join(installationPath, pkg.Hooks.Postremove), 0755); err != nil {
 			return err
@@ -89,7 +91,9 @@ func Remove (c *cli.Context) error {
 
 	delete(db.Packages, packageName)
 
-	util.WriteDatabase(c.String("root"), db)
+	if err := util.WriteDatabase(c.String("root"), db); err != nil {
+		return err
+	}
 
 	return nil
 }
