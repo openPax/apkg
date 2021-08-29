@@ -324,3 +324,23 @@ func Remove(root string, packageName string) error {
 
 	return nil
 }
+
+func ListInstalled(root string) (map[string]DBPackage, error) {
+	if err := os.MkdirAll(root, 0755); err != nil {
+		return nil, err
+	}
+
+	if err := LockDatabase(root); err != nil {
+		return nil, err
+	}
+
+	defer UnlockDatabase(root)
+
+	db, err := ReadDatabase(root)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return db.Packages, nil
+}

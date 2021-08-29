@@ -42,6 +42,13 @@ func main() {
 				Aliases:   []string{"r"},
 				Action:    cmd.Remove,
 			},
+			{
+				Name:      "list",
+				Usage:     "List all installed packages",
+				UsageText: "apkg list",
+				Aliases:   []string{"l"},
+				Action:    cmd.List,
+			},
 		},
 	}
 
