@@ -8,13 +8,13 @@ import (
 )
 
 type Database struct {
-	Packages	map[string]DBPackage `toml:"package"`
+	Packages map[string]DBPackage `toml:"package"`
 }
 
 type DBPackage struct {
-	Hash 			string `toml:"hash"`
-	Package 	Package `toml:"package"`
-	Dependencies	Dependencies `toml:"dependencies"`
+	Hash         string       `toml:"hash"`
+	Package      Package      `toml:"package"`
+	Dependencies Dependencies `toml:"dependencies"`
 }
 
 func ReadDatabase(root string) (*Database, error) {
@@ -39,18 +39,18 @@ func ReadDatabase(root string) (*Database, error) {
 	}
 
 	if db.Packages == nil {
-    db.Packages = make(map[string]DBPackage)
+		db.Packages = make(map[string]DBPackage)
 	}
 
-	return &db, nil 
+	return &db, nil
 }
 
 func WriteDatabase(root string, db *Database) error {
 	file, err := os.OpenFile(filepath.Join(root, "db.toml"), os.O_TRUNC|os.O_WRONLY, 0644)
-	if err != nil {	
+	if err != nil {
 		return err
 	}
-	
+
 	defer file.Close()
 
 	if err := toml.NewEncoder(file).Encode(db); err != nil {
@@ -63,7 +63,7 @@ func WriteDatabase(root string, db *Database) error {
 func LockDatabase(root string) error {
 	_, err := os.Stat(filepath.Join(root, "db.lock"))
 	if err == nil {
-		return &errorString{"Database already locked"}
+		return &ErrorString{"Database already locked"}
 	}
 
 	if !os.IsNotExist(err) {
@@ -71,7 +71,7 @@ func LockDatabase(root string) error {
 	}
 
 	file, err := os.Create(filepath.Join(root, "db.lock"))
-	if err != nil {	
+	if err != nil {
 		return err
 	}
 
