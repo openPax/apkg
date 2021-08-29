@@ -95,6 +95,40 @@ func ExtractPackage(tarball, target string) error {
 	return nil
 }
 
+func InspectPackage(tarball string) (*PackageRoot, error) {
+	reader, err := os.Open(tarball)
+	if err != nil {
+		return nil, err
+	}
+	defer reader.Close()
+	xzReader, err := xz.NewReader(reader)
+	if err != nil {
+		return nil, err
+	}
+	tarReader := tar.NewReader(xzReader)
+
+	for {
+		header, err := tarReader.Next()
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			return nil, err
+		}
+
+		if header.Name == "package.toml" {
+			var pkg PackageRoot
+
+			if _, err := toml.DecodeReader(tarReader, &pkg); err != nil {
+				return nil, err
+			}
+
+			return &pkg, nil
+		}
+	}
+
+	return nil, &ErrorString{S: "package.toml not found"}
+}
+
 func InstallBinaries(root string, pkgPath string, pkg *PackageRoot) error {
 	for k, v := range pkg.Bin {
 		if err := os.Chmod(filepath.Join(pkgPath, v), 0755); err != nil {
@@ -132,6 +166,22 @@ func Install(root string, packageFile string) error {
 
 	defer UnlockDatabase(root)
 
+	db, err := ReadDatabase(root)
+
+	if err != nil {
+		return err
+	}
+
+	pkg, err := InspectPackage(packageFile)
+
+	if err != nil {
+		return err
+	}
+
+	if _, ok := db.Packages[pkg.Package.Name]; ok {
+		return &ErrorString{S: "Package is already installed with name " + pkg.Package.Name}
+	}
+
 	file, err := os.Open(packageFile)
 	if err != nil {
 		return &ErrorString{S: "Couldn't open file!"}
@@ -155,20 +205,8 @@ func Install(root string, packageFile string) error {
 		return err
 	}
 
-	pkg, err := ParsePackageFile(filepath.Join(installationPath, "package.toml"))
-
 	if err != nil {
 		return err
-	}
-
-	db, err := ReadDatabase(root)
-
-	if err != nil {
-		return err
-	}
-
-	if _, ok := db.Packages[pkg.Package.Name]; ok {
-		return &ErrorString{S: "Package is already installed with name " + pkg.Package.Name}
 	}
 
 	for i := range pkg.Dependencies.Required {

@@ -49,6 +49,13 @@ func main() {
 				Aliases:   []string{"l"},
 				Action:    cmd.List,
 			},
+			{
+				Name:      "info",
+				Usage:     "Get the information for a package",
+				UsageText: "apkg info <package file|package name>",
+				Aliases:   []string{"in"},
+				Action:    cmd.Info,
+			},
 		},
 	}
 
