@@ -382,3 +382,35 @@ func ListInstalled(root string) (map[string]DBPackage, error) {
 
 	return db.Packages, nil
 }
+
+func PackageInfo(root string, name string) (pkg *PackageRoot, err error) {
+	if err := os.MkdirAll(root, 0755); err != nil {
+		return nil, err
+	}
+
+	if err := LockDatabase(root); err != nil {
+		return nil, err
+	}
+
+	defer UnlockDatabase(root)
+
+	db, err := ReadDatabase(root)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if _, ok := db.Packages[name]; !ok {
+		return nil, &ErrorString{S: "Package doesn't exist"}
+	}
+
+	installationPath := filepath.Join(root, "packages", db.Packages[name].Hash)
+
+	pkg, err = ParsePackageFile(filepath.Join(installationPath, "package.toml"))
+
+	if err != nil {
+		return nil, err
+	}
+
+	return pkg, nil
+}

@@ -3,12 +3,27 @@ package cmd
 import (
 	"github.com/innatical/apkg/util"
 	"github.com/urfave/cli/v2"
+	"os"
 )
 
 func Info(c *cli.Context) error {
-	pkg, err := util.InspectPackage(c.Args().First())
+	var pkg *util.PackageRoot
+
+	_, err := os.Stat(c.Args().First())
 	if err != nil {
-		return err
+		if !os.IsNotExist(err) {
+			return err
+		} else {
+			pkg, err = util.PackageInfo(c.String("root"), c.Args().First())
+			if err != nil {
+				return err
+			}
+		}
+	} else {
+		pkg, err = util.InspectPackage(c.Args().First())
+		if err != nil {
+			return err
+		}
 	}
 
 	println(pkg.Package.Name + "@" + pkg.Package.Version)
