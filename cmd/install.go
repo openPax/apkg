@@ -7,6 +7,12 @@ import (
 )
 
 func Install(c *cli.Context) error {
+	if err := util.LockDatabase(c.String("root")); err != nil {
+		return err
+	}
+
+	defer util.UnlockDatabase(c.String("root"))
+
 	if err := util.Install(c.String("root"), c.Args().First()); err != nil {
 		return err
 	}

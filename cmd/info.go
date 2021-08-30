@@ -7,6 +7,12 @@ import (
 )
 
 func Info(c *cli.Context) error {
+	if err := util.LockDatabase(c.String("root")); err != nil {
+		return err
+	}
+
+	defer util.UnlockDatabase(c.String("root"))
+
 	var pkg *util.PackageRoot
 
 	_, err := os.Stat(c.Args().First())

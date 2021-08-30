@@ -6,6 +6,12 @@ import (
 )
 
 func List(c *cli.Context) error {
+	if err := util.LockDatabase(c.String("root")); err != nil {
+		return err
+	}
+
+	defer util.UnlockDatabase(c.String("root"))
+
 	installed, err := util.ListInstalled(c.String("root"))
 	if err != nil {
 		return err

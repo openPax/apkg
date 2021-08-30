@@ -187,12 +187,6 @@ func Install(root string, packageFile string) error {
 		return err
 	}
 
-	if err := LockDatabase(root); err != nil {
-		return err
-	}
-
-	defer UnlockDatabase(root)
-
 	db, err := ReadDatabase(root)
 
 	if err != nil {
@@ -312,12 +306,6 @@ func Remove(root string, packageName string) error {
 		return err
 	}
 
-	if err := LockDatabase(root); err != nil {
-		return err
-	}
-
-	defer UnlockDatabase(root)
-
 	db, err := ReadDatabase(root)
 
 	if err != nil {
@@ -401,12 +389,6 @@ func ListInstalled(root string) (map[string]DBPackage, error) {
 		return nil, err
 	}
 
-	if err := LockDatabase(root); err != nil {
-		return nil, err
-	}
-
-	defer UnlockDatabase(root)
-
 	db, err := ReadDatabase(root)
 
 	if err != nil {
@@ -420,12 +402,6 @@ func PackageInfo(root string, name string) (pkg *PackageRoot, err error) {
 	if err := os.MkdirAll(root, 0755); err != nil {
 		return nil, err
 	}
-
-	if err := LockDatabase(root); err != nil {
-		return nil, err
-	}
-
-	defer UnlockDatabase(root)
 
 	db, err := ReadDatabase(root)
 
