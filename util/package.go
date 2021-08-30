@@ -20,6 +20,7 @@ type PackageRoot struct {
 	Package      Package           `toml:"package"`
 	Dependencies Dependencies      `toml:"dependencies"`
 	Bin          map[string]string `toml:"bin"`
+	Lib          map[string]string `toml:"lib"`
 	Hooks        Hooks             `toml:"hooks"`
 }
 
@@ -155,6 +156,32 @@ func RemoveBinaries(root string, pkg *PackageRoot) error {
 	return nil
 }
 
+func InstallLibraries(root string, pkgPath string, pkg *PackageRoot) error {
+	for k, v := range pkg.Lib {
+		if err := os.Chmod(filepath.Join(pkgPath, v), 0755); err != nil {
+			return err
+		}
+		if err := os.MkdirAll(filepath.Join(root, "lib"), 0755); err != nil {
+			return err
+		}
+		if err := os.Symlink(filepath.Join(pkgPath, v), filepath.Join(root, "lib", k)); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func RemoveLibraries(root string, pkg *PackageRoot) error {
+	for k := range pkg.Lib {
+		if err := os.Remove(filepath.Join(root, "lib", k)); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func Install(root string, packageFile string) error {
 	if err := os.MkdirAll(root, 0755); err != nil {
 		return err
@@ -251,6 +278,9 @@ func Install(root string, packageFile string) error {
 	if err := InstallBinaries(root, installationPath, pkg); err != nil {
 		return err
 	}
+	if err := InstallLibraries(root, installationPath, pkg); err != nil {
+		return err
+	}
 
 	db.Packages[pkg.Package.Name] = DBPackage{Hash: stringHash, Dependencies: pkg.Dependencies, Package: pkg.Package}
 
@@ -331,6 +361,9 @@ func Remove(root string, packageName string) error {
 	}
 
 	if err := RemoveBinaries(root, pkg); err != nil {
+		return err
+	}
+	if err := RemoveLibraries(root, pkg); err != nil {
 		return err
 	}
 
