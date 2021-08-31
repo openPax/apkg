@@ -1,0 +1,15 @@
+spec = 1
+
+[package]
+name = "apkg"
+description = "The alt package manager backend"
+version = "1.0.0"
+authors = [
+  "Lleyton <lleyton@innatical.com>"
+]
+maintainers = [
+  "Lleyton <lleyton@innatical.com>"
+]
+
+[bin]
+apkg = "./apkg"
