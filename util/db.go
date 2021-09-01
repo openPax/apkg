@@ -18,6 +18,10 @@ type DBPackage struct {
 }
 
 func ReadDatabase(root string) (*Database, error) {
+	if err := os.MkdirAll(root, 0755); err != nil {
+		return nil, err
+	}
+
 	_, err := os.Stat(filepath.Join(root, "db.toml"))
 	if err != nil {
 		if !os.IsNotExist(err) {
@@ -46,6 +50,10 @@ func ReadDatabase(root string) (*Database, error) {
 }
 
 func WriteDatabase(root string, db *Database) error {
+	if err := os.MkdirAll(root, 0755); err != nil {
+		return err
+	}
+
 	file, err := os.OpenFile(filepath.Join(root, "db.toml"), os.O_TRUNC|os.O_WRONLY, 0644)
 	if err != nil {
 		return err
@@ -61,6 +69,10 @@ func WriteDatabase(root string, db *Database) error {
 }
 
 func LockDatabase(root string) error {
+	if err := os.MkdirAll(root, 0755); err != nil {
+		return err
+	}
+
 	_, err := os.Stat(filepath.Join(root, "db.lock"))
 	if err == nil {
 		return &ErrorString{"Database already locked"}
@@ -81,6 +93,10 @@ func LockDatabase(root string) error {
 }
 
 func UnlockDatabase(root string) error {
+	if err := os.MkdirAll(root, 0755); err != nil {
+		return err
+	}
+	
 	if err := os.Remove(filepath.Join(root, "db.lock")); err != nil {
 		return nil
 	}
