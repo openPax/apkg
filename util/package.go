@@ -4,12 +4,13 @@ import (
 	"archive/tar"
 	"crypto/sha256"
 	"encoding/hex"
-	"github.com/Masterminds/semver"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/Masterminds/semver"
 
 	"github.com/BurntSushi/toml"
 	"github.com/ulikunitz/xz"
@@ -19,8 +20,7 @@ type PackageRoot struct {
 	Spec         int               `toml:"spec"`
 	Package      Package           `toml:"package"`
 	Dependencies Dependencies      `toml:"dependencies"`
-	Bin          map[string]string `toml:"bin"`
-	Lib          map[string]string `toml:"lib"`
+	Files 			 map[string]string `toml:"files"`
 	Hooks        Hooks             `toml:"hooks"`
 }
 
@@ -130,52 +130,74 @@ func InspectPackage(tarball string) (*PackageRoot, error) {
 	return nil, &ErrorString{S: "package.toml not found"}
 }
 
-func InstallBinaries(root string, pkgPath string, pkg *PackageRoot) error {
-	for k, v := range pkg.Bin {
-		if err := os.Chmod(filepath.Join(pkgPath, v), 0755); err != nil {
+func InstallFile(root string, pkgPath string, pkg *PackageRoot) error {
+	for k, v := range pkg.Files {
+		info, err := os.Stat(filepath.Join(pkgPath, v))
+		if err != nil {
 			return err
 		}
-		if err := os.MkdirAll(filepath.Join(root, "bin"), 0755); err != nil {
-			return err
-		}
-		if err := os.Symlink(filepath.Join(pkgPath, v), filepath.Join(root, "bin", k)); err != nil {
-			return err
+
+		if info.IsDir() {
+			if err := filepath.Walk(filepath.Join(pkgPath, v), func(path string, info os.FileInfo, err error) error {
+				if err != nil {
+        	return err
+    		}
+
+				if info.IsDir() {
+					os.Mkdir(filepath.Join(root, path), info.Mode().Perm())
+				} else {
+					if err := os.Symlink(filepath.Join(pkgPath, path), filepath.Join(root, path)); err != nil {
+						return err
+					}
+				}
+
+				return nil
+			}); err != nil {
+				return nil
+			}
+		} else {
+			if err := os.Symlink(filepath.Join(pkgPath, v), filepath.Join(root, k)); err != nil {
+				return err
+			}
 		}
 	}
 
 	return nil
 }
 
-func RemoveBinaries(root string, pkg *PackageRoot) error {
-	for k := range pkg.Bin {
+func RemoveFiles(root string, pkgPath string, pkg *PackageRoot) error {
+	for k := range pkg.Files {
 		if err := os.Remove(filepath.Join(root, "bin", k)); err != nil {
 			return err
 		}
 	}
 
-	return nil
-}
-
-func InstallLibraries(root string, pkgPath string, pkg *PackageRoot) error {
-	for k, v := range pkg.Lib {
-		if err := os.Chmod(filepath.Join(pkgPath, v), 0755); err != nil {
+	for k, v := range pkg.Files {
+		info, err := os.Stat(filepath.Join(pkgPath, v))
+		if err != nil {
 			return err
 		}
-		if err := os.MkdirAll(filepath.Join(root, "lib"), 0755); err != nil {
-			return err
-		}
-		if err := os.Symlink(filepath.Join(pkgPath, v), filepath.Join(root, "lib", k)); err != nil {
-			return err
-		}
-	}
 
-	return nil
-}
+		if info.IsDir() {
+			if err := filepath.Walk(filepath.Join(pkgPath, v), func(path string, info os.FileInfo, err error) error {
+				if err != nil {
+        	return err
+    		}
 
-func RemoveLibraries(root string, pkg *PackageRoot) error {
-	for k := range pkg.Lib {
-		if err := os.Remove(filepath.Join(root, "lib", k)); err != nil {
-			return err
+				if !info.IsDir() {
+					if err := os.Remove(filepath.Join(root, k)); err != nil {
+						return err
+					}
+				}
+
+				return nil
+			}); err != nil {
+				return nil
+			}
+		} else {
+			if err := os.Remove(filepath.Join(root, k)); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -269,10 +291,7 @@ func Install(root string, packageFile string) error {
 		}
 	}
 
-	if err := InstallBinaries(root, installationPath, pkg); err != nil {
-		return err
-	}
-	if err := InstallLibraries(root, installationPath, pkg); err != nil {
+	if err := InstallFile(root, installationPath, pkg); err != nil {
 		return err
 	}
 
@@ -348,10 +367,7 @@ func Remove(root string, packageName string) error {
 		}
 	}
 
-	if err := RemoveBinaries(root, pkg); err != nil {
-		return err
-	}
-	if err := RemoveLibraries(root, pkg); err != nil {
+	if err := RemoveFiles(root, installationPath, pkg); err != nil {
 		return err
 	}
 
