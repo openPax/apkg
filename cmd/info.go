@@ -1,9 +1,10 @@
 package cmd
 
 import (
-	"github.com/innatical/apkg/util"
-	"github.com/urfave/cli/v2"
 	"os"
+
+	"github.com/innatical/apkg/v2/util"
+	"github.com/urfave/cli/v2"
 )
 
 func Info(c *cli.Context) error {

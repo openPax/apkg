@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"github.com/innatical/apkg/util"
+	"github.com/innatical/apkg/v2/util"
 
 	"github.com/urfave/cli/v2"
 )
