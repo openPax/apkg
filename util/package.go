@@ -146,6 +146,15 @@ func InstallFile(root string, pkgPath string, pkg *PackageRoot) error {
 				if info.IsDir() {
 					os.Mkdir(filepath.Join(root, path), info.Mode().Perm())
 				} else {
+					info, err := os.Stat(filepath.Dir(filepath.Join(pkgPath, path)))
+					if err != nil {
+						return err
+					}
+
+					if err := os.MkdirAll(filepath.Dir(filepath.Join(root, path)), info.Mode().Perm()); err != nil {
+        		return err
+    			}
+
 					if err := os.Symlink(filepath.Join(pkgPath, path), filepath.Join(root, path)); err != nil {
 						return err
 					}
@@ -155,7 +164,16 @@ func InstallFile(root string, pkgPath string, pkg *PackageRoot) error {
 			}); err != nil {
 				return nil
 			}
-		} else {
+		} else {			
+			info, err := os.Stat(filepath.Dir(filepath.Join(pkgPath, k)))
+			if err != nil {
+				return err
+			}
+
+			if err := os.MkdirAll(filepath.Dir(filepath.Join(root, k)), info.Mode().Perm()); err != nil {
+				return err
+			}
+
 			if err := os.Symlink(filepath.Join(pkgPath, v), filepath.Join(root, k)); err != nil {
 				return err
 			}
