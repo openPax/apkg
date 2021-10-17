@@ -1,4 +1,4 @@
-module github.com/innatical/apkg
+module github.com/innatical/apkg/v2
 
 go 1.16
 

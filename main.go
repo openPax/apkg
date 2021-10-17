@@ -5,7 +5,7 @@ import (
 	"os/user"
 	"path/filepath"
 
-	"github.com/innatical/apkg/cmd"
+	"github.com/innatical/apkg/v2/cmd"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/urfave/cli/v2"

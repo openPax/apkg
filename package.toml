@@ -12,5 +12,5 @@ maintainers = [
   "Lleyton <lleyton@innatical.com>"
 ]
 
-[bin]
-apkg = "./apkg"
+[files]
+"bin/apkg" = "./apkg"
