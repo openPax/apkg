@@ -161,7 +161,7 @@ func InstallFile(root string, pkgPath string, pkg *PackageRoot) error {
         		return err
     			}
 
-					if err := os.Symlink(filepath.Join(pkgPath, relative), filepath.Join(root, relative)); err != nil {
+					if err := os.Link(filepath.Join(pkgPath, relative), filepath.Join(root, relative)); err != nil {
 						return err
 					}
 				}
@@ -180,7 +180,7 @@ func InstallFile(root string, pkgPath string, pkg *PackageRoot) error {
 				return err
 			}
 
-			if err := os.Symlink(filepath.Join(pkgPath, v), filepath.Join(root, k)); err != nil {
+			if err := os.Link(filepath.Join(pkgPath, v), filepath.Join(root, k)); err != nil {
 				return err
 			}
 		}
