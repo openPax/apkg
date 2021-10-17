@@ -83,6 +83,13 @@ func ExtractPackage(tarball, target string) error {
 			continue
 		}
 
+		if info.Mode() & os.ModeSymlink == os.ModeSymlink {
+			if err = os.Symlink(header.Linkname, path); err != nil {
+				return err
+			}
+			continue
+		}
+
 		file, err := os.OpenFile(path, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, info.Mode())
 		if err != nil {
 			return err
