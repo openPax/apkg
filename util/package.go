@@ -83,15 +83,23 @@ func ExtractPackage(tarball, target string) error {
 			continue
 		}
 
+		if info.Mode() & os.ModeSymlink == os.ModeSymlink {
+			if err = os.Symlink(header.Linkname, path); err != nil {
+				return err
+			}
+			continue
+		}
+
 		file, err := os.OpenFile(path, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, info.Mode())
 		if err != nil {
 			return err
 		}
-		defer file.Close()
 		_, err = io.Copy(file, tarReader)
 		if err != nil {
+			file.Close()
 			return err
 		}
+		file.Close()
 	}
 	return nil
 }
@@ -160,7 +168,7 @@ func InstallFile(root string, pkgPath string, pkg *PackageRoot) error {
         		return err
     			}
 
-					if err := os.Symlink(filepath.Join(pkgPath, relative), filepath.Join(root, relative)); err != nil {
+					if err := os.Link(filepath.Join(pkgPath, relative), filepath.Join(root, relative)); err != nil {
 						return err
 					}
 				}
@@ -179,7 +187,7 @@ func InstallFile(root string, pkgPath string, pkg *PackageRoot) error {
 				return err
 			}
 
-			if err := os.Symlink(filepath.Join(pkgPath, v), filepath.Join(root, k)); err != nil {
+			if err := os.Link(filepath.Join(pkgPath, v), filepath.Join(root, k)); err != nil {
 				return err
 			}
 		}
