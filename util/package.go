@@ -164,11 +164,11 @@ func InstallFile(root string, pkgPath string, pkg *PackageRoot) error {
 						return err
 					}
 
-					if err := os.MkdirAll(filepath.Dir(filepath.Join(root, relative)), info.Mode().Perm()); err != nil {
+					if err := os.MkdirAll(filepath.Dir(filepath.Join(root, k, relative)), info.Mode().Perm()); err != nil {
         		return err
     		 	}
 
-					if err := os.Link(filepath.Join(pkgPath, v, relative), filepath.Join(root, relative)); err != nil {
+					if err := os.Link(filepath.Join(pkgPath, v, relative), filepath.Join(root, k, relative)); err != nil {
 						return err
 					}
 				}
