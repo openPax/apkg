@@ -151,7 +151,7 @@ func InstallFile(root string, pkgPath string, pkg *PackageRoot) error {
         	return err
     		}
 
-				relative, err := filepath.Rel(pkgPath, path)
+				relative, err := filepath.Rel(filepath.Join(pkgPath, v), path)
 				if err != nil {
 					return err
 				}
