@@ -22,7 +22,7 @@ func main() {
 
 	app := &cli.App{
 		Name:      "apkg",
-		Usage:     "The alt package manager backend",
+		Usage:     "The pax package manager backend",
 		UsageText: "apkg [global options] command [command options] [arguments...]",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
