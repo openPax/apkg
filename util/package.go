@@ -76,6 +76,14 @@ func ExtractPackage(tarball, target string) error {
 
 		path := filepath.Join(target, header.Name)
 		info := header.FileInfo()
+		
+		if header.Typeflag == tar.TypeLink {
+			if err := os.Link(filepath.Join(target, header.Linkname), path); err != nil {
+				return err
+			}
+			continue
+		}
+
 		if info.IsDir() {
 			if err = os.MkdirAll(path, info.Mode()); err != nil {
 				return err
