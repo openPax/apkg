@@ -165,7 +165,7 @@ func InstallFile(root string, pkgPath string, pkg *PackageRoot) error {
 				}
 				
 				if info.IsDir() {
-					os.Mkdir(filepath.Join(root, relative), info.Mode().Perm())
+					os.Mkdir(filepath.Join(root, k, relative), info.Mode().Perm())
 					} else {
 					info, err := os.Stat(filepath.Dir(filepath.Join(pkgPath, v, relative)))
 					if err != nil {
