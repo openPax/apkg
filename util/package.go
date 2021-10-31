@@ -13,7 +13,7 @@ import (
 	"github.com/Masterminds/semver"
 
 	"github.com/BurntSushi/toml"
-	"github.com/ulikunitz/xz"
+	"github.com/klauspost/compress/zstd"
 )
 
 type PackageRoot struct {
@@ -60,11 +60,11 @@ func ExtractPackage(tarball, target string) error {
 		return err
 	}
 	defer reader.Close()
-	xzReader, err := xz.NewReader(reader)
+	zstdReader, err := zstd.NewReader(reader)
 	if err != nil {
 		return err
 	}
-	tarReader := tar.NewReader(xzReader)
+	tarReader := tar.NewReader(zstdReader)
 
 	for {
 		header, err := tarReader.Next()
@@ -118,11 +118,11 @@ func InspectPackage(tarball string) (*PackageRoot, error) {
 		return nil, err
 	}
 	defer reader.Close()
-	xzReader, err := xz.NewReader(reader)
+	zstdReader, err := zstd.NewReader(reader)
 	if err != nil {
 		return nil, err
 	}
-	tarReader := tar.NewReader(xzReader)
+	tarReader := tar.NewReader(zstdReader)
 
 	for {
 		header, err := tarReader.Next()
