@@ -34,10 +34,10 @@ jobs:
           mv apkg-linux-amd64 linux-amd64/apkg
           cp package.toml linux-arm64
           mv apkg-linux-arm64 linux-arm64/apkg
-          (cd darwin-amd64 && tar cfJ ../darwin-amd64.apkg *)
-          (cd darwin-arm64 && tar cfJ ../darwin-arm64.apkg *)
-          (cd linux-amd64 && tar cfJ ../linux-amd64.apkg *)
-          (cd linux-arm64 && tar cfJ ../linux-arm64.apkg *)
+          (cd darwin-amd64 && tar --zstd -cf ../darwin-amd64.apkg *)
+          (cd darwin-arm64 && tar --zstd -cf ../darwin-arm64.apkg *)
+          (cd linux-amd64 && tar --zstd -cf ../linux-amd64.apkg *)
+          (cd linux-arm64 && tar --zstd -cf ../linux-arm64.apkg *)
       - name: Release APKG
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/v')
