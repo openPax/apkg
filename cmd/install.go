@@ -13,7 +13,7 @@ func Install(c *cli.Context) error {
 
 	defer util.UnlockDatabase(c.String("root"))
 
-	if err := util.Install(c.String("root"), c.Args().First()); err != nil {
+	if err := util.InstallMultiple(c.String("root"), c.Args().Slice()); err != nil {
 		return err
 	}
 

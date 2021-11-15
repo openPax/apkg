@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/Masterminds/semver"
+	"github.com/goombaio/dag"
 
 	"github.com/BurntSushi/toml"
 	"github.com/klauspost/compress/zstd"
@@ -20,7 +21,7 @@ type PackageRoot struct {
 	Spec         int               `toml:"spec"`
 	Package      Package           `toml:"package"`
 	Dependencies Dependencies      `toml:"dependencies"`
-	Files 			 map[string]string `toml:"files"`
+	Files        map[string]string `toml:"files"`
 	Hooks        Hooks             `toml:"hooks"`
 }
 
@@ -76,7 +77,7 @@ func ExtractPackage(tarball, target string) error {
 
 		path := filepath.Join(target, header.Name)
 		info := header.FileInfo()
-		
+
 		if header.Typeflag == tar.TypeLink {
 			if err := os.Link(filepath.Join(target, header.Linkname), path); err != nil {
 				return err
@@ -91,7 +92,7 @@ func ExtractPackage(tarball, target string) error {
 			continue
 		}
 
-		if info.Mode() & os.ModeSymlink == os.ModeSymlink {
+		if info.Mode()&os.ModeSymlink == os.ModeSymlink {
 			if err = os.Symlink(header.Linkname, path); err != nil {
 				return err
 			}
@@ -146,7 +147,7 @@ func InspectPackage(tarball string) (*PackageRoot, error) {
 	return nil, &ErrorString{S: "package.toml not found"}
 }
 
-func InstallFile(root string, pkgPath string, pkg *PackageRoot) error {
+func InstallFiles(root string, pkgPath string, pkg *PackageRoot) error {
 	for k, v := range pkg.Files {
 		info, err := os.Stat(filepath.Join(pkgPath, v))
 		if err != nil {
@@ -156,25 +157,25 @@ func InstallFile(root string, pkgPath string, pkg *PackageRoot) error {
 		if info.IsDir() {
 			if err := filepath.Walk(filepath.Join(pkgPath, v), func(path string, info os.FileInfo, err error) error {
 				if err != nil {
-        	return err
-    		}
+					return err
+				}
 
 				relative, err := filepath.Rel(filepath.Join(pkgPath, v), path)
 				if err != nil {
 					return err
 				}
-				
+
 				if info.IsDir() {
 					os.Mkdir(filepath.Join(root, k, relative), info.Mode().Perm())
-					} else {
+				} else {
 					info, err := os.Stat(filepath.Dir(filepath.Join(pkgPath, v, relative)))
 					if err != nil {
 						return err
 					}
 
 					if err := os.MkdirAll(filepath.Dir(filepath.Join(root, k, relative)), info.Mode().Perm()); err != nil {
-        		return err
-    		 	}
+						return err
+					}
 
 					if err := os.Link(filepath.Join(pkgPath, v, relative), filepath.Join(root, k, relative)); err != nil {
 						return err
@@ -185,7 +186,7 @@ func InstallFile(root string, pkgPath string, pkg *PackageRoot) error {
 			}); err != nil {
 				return err
 			}
-		} else {			
+		} else {
 			info, err := os.Stat(filepath.Dir(filepath.Join(pkgPath, v)))
 			if err != nil {
 				return err
@@ -214,9 +215,9 @@ func RemoveFiles(root string, pkgPath string, pkg *PackageRoot) error {
 		if info.IsDir() {
 			if err := filepath.Walk(filepath.Join(pkgPath, v), func(path string, info os.FileInfo, err error) error {
 				if err != nil {
-        	return err
-    		}
-				
+					return err
+				}
+
 				relative, err := filepath.Rel(pkgPath, path)
 				if err != nil {
 					return err
@@ -309,7 +310,7 @@ func Install(root string, packageFile string) error {
 		}
 
 		if !c.Check(depVersion) {
-			return &ErrorString{S: "Version constraint for package " + splitdep[0] + "not met. Required " + splitdep[1] + ", Found " + db.Packages[splitdep[0]].Package.Version}
+			return &ErrorString{S: "Version constraint for package " + splitdep[0] + "not met. Required " + splitdep[1] + ", found " + db.Packages[splitdep[0]].Package.Version}
 		}
 	}
 
@@ -329,7 +330,7 @@ func Install(root string, packageFile string) error {
 		}
 	}
 
-	if err := InstallFile(root, installationPath, pkg); err != nil {
+	if err := InstallFiles(root, installationPath, pkg); err != nil {
 		return err
 	}
 
@@ -356,6 +357,166 @@ func Install(root string, packageFile string) error {
 	}
 
 	return nil
+}
+
+func InstallMultiple(root string, packageFiles []string) error {
+	if err := os.MkdirAll(root, 0755); err != nil {
+		return err
+	}
+
+	db, err := ReadDatabase(root)
+
+	if err != nil {
+		return err
+	}
+
+	packages := dag.NewDAG()
+
+	for _, file := range packageFiles {
+		pkg, err := InspectPackage(file)
+
+		if err != nil {
+			return err
+		}
+
+		packages.AddVertex(dag.NewVertex(file, pkg))
+	}
+
+	for _, file := range packageFiles {
+		vertex, err := packages.GetVertex(file)
+
+		if err != nil {
+			return err
+		}
+
+		pkg := vertex.Value.(*PackageRoot)
+
+		REQUIRED:
+		for i := range pkg.Dependencies.Required {
+			dependency := pkg.Dependencies.Required[i]
+			splitdep := strings.Split(dependency, "@")
+
+			if _, ok := db.Packages[splitdep[0]]; ok {
+				depVersion, err := semver.NewVersion(db.Packages[splitdep[0]].Package.Version)
+				if err != nil {
+					return err
+				}
+
+				c, err := semver.NewConstraint(splitdep[1])
+				if err != nil {
+					return err
+				}
+
+				if !c.Check(depVersion) {
+					return &ErrorString{S: "Version constraint for package " + splitdep[0] + "not met. Required " + splitdep[1] + ", found " + db.Packages[splitdep[0]].Package.Version}
+				}
+
+				continue
+			}
+
+			for _, file2 := range packageFiles {
+				vertex2, err := packages.GetVertex(file2)
+
+				if err != nil {
+					return err
+				}
+
+				pkg2 := vertex2.Value.(*PackageRoot)
+
+				if pkg2.Package.Name != splitdep[0] {
+					continue
+				}
+
+				depVersion, err := semver.NewVersion(pkg2.Package.Version)
+				if err != nil {
+					return err
+				}
+
+				c, err := semver.NewConstraint(splitdep[1])
+				if err != nil {
+					return err
+				}
+
+				if !c.Check(depVersion) {
+					return &ErrorString{S: "Version constraint for package " + splitdep[0] + "not met. Required " + splitdep[1] + ", installing " + db.Packages[splitdep[0]].Package.Version}
+				}
+
+				if err := packages.AddEdge(vertex, vertex2); err != nil {
+					return err
+				}
+
+				continue REQUIRED
+			}
+
+			return &ErrorString{S: "Dependency not found: " + dependency}
+		}
+
+		OPTIONAL:
+		for i := range pkg.Dependencies.Optional {
+			dependency := pkg.Dependencies.Optional[i]
+			splitdep := strings.Split(dependency, "@")
+
+			if _, ok := db.Packages[splitdep[0]]; ok {
+				depVersion, err := semver.NewVersion(db.Packages[splitdep[0]].Package.Version)
+				if err != nil {
+					return err
+				}
+
+				c, err := semver.NewConstraint(splitdep[1])
+				if err != nil {
+					return err
+				}
+
+				if !c.Check(depVersion) {
+					return &ErrorString{S: "Version constraint for package " + splitdep[0] + "not met. Required " + splitdep[1] + ", found " + db.Packages[splitdep[0]].Package.Version}
+				}
+
+				continue
+			}
+
+			for _, file2 := range packageFiles {
+				vertex2, err := packages.GetVertex(file2)
+
+				if err != nil {
+					return err
+				}
+
+				pkg2 := vertex2.Value.(*PackageRoot)
+
+				if pkg2.Package.Name != splitdep[0] {
+					continue
+				}
+
+				depVersion, err := semver.NewVersion(pkg2.Package.Version)
+				if err != nil {
+					return err
+				}
+
+				c, err := semver.NewConstraint(splitdep[1])
+				if err != nil {
+					return err
+				}
+
+				if !c.Check(depVersion) {
+					return &ErrorString{S: "Version constraint for package " + splitdep[0] + "not met. Required " + splitdep[1] + ", installing " + db.Packages[splitdep[0]].Package.Version}
+				}
+
+				if err := packages.AddEdge(vertex, vertex2); err != nil {
+					return err
+				}
+
+				continue OPTIONAL
+			}
+
+			return &ErrorString{S: "Dependency not found: " + dependency}
+		}
+	}
+
+	println(packages.String())
+
+	// TODO: Traverse the graph and install packages safely
+
+	return &ErrorString{S: "WIP"}
 }
 
 func Remove(root string, packageName string) error {

@@ -35,7 +35,7 @@ func main() {
 			{
 				Name:      "install",
 				Usage:     "Install a package",
-				UsageText: "apkg install <package file>",
+				UsageText: "apkg install <package files...>",
 				Aliases:   []string{"i"},
 				Action:    cmd.Install,
 			},

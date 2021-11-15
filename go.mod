@@ -12,6 +12,9 @@ require (
 
 require (
 	github.com/cpuguy83/go-md2man/v2 v2.0.1 // indirect
+	github.com/goombaio/dag v0.0.0-20181006234417-a8874b1f72ff // indirect
+	github.com/goombaio/orderedmap v0.0.0-20180924084748-ba921b7e2419 // indirect
+	github.com/goombaio/orderedset v0.0.0-20180924084730-d1b9fdd81eca // indirect
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/mattn/go-runewidth v0.0.13 // indirect
