@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/Masterminds/semver"
 	"github.com/goombaio/dag"
@@ -512,9 +513,51 @@ func InstallMultiple(root string, packageFiles []string) error {
 		}
 	}
 
-	println(packages.String())
-
 	// TODO: Traverse the graph and install packages safely
+
+	fatalErrors := make(chan error)
+	wgDone := make(chan bool)
+	var wg sync.WaitGroup
+	var state sync.Map
+
+	for _, file := range packageFiles {
+		state.Store(file, "ready")
+	}
+	
+	entryPoints := packages.SourceVertices()
+
+	for _, point := range entryPoints {
+		point := point
+		
+		wg.Add(1)
+
+		go func() {
+			state.Store(point.ID, "working")
+
+			defer wg.Done()
+			if err := Install(root, point.ID); err != nil {
+				fatalErrors <- err
+				return
+			}
+
+			state.Store(point.ID, "done")
+
+		}()
+	}
+
+	go func() {
+		wg.Wait()
+		close(wgDone)
+	}()
+	
+
+	select {
+		case <- wgDone:
+			break
+		case err := <- fatalErrors:
+			close(fatalErrors)
+			return err
+	}
 
 	return &ErrorString{S: "WIP"}
 }
