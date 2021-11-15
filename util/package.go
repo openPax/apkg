@@ -519,10 +519,6 @@ func InstallMultiple(root string, packageFiles []string) error {
 	wgDone := make(chan bool)
 	var wg sync.WaitGroup
 	var state sync.Map
-
-	for _, file := range packageFiles {
-		state.Store(file, "ready")
-	}
 	
 	entryPoints := packages.SourceVertices()
 
@@ -542,6 +538,9 @@ func InstallMultiple(root string, packageFiles []string) error {
 
 			state.Store(point.ID, "done")
 
+			for child := point.Children.Values() {
+
+			}
 		}()
 	}
 
