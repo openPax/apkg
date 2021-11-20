@@ -3,7 +3,7 @@ spec = 1
 [package]
 name = "apkg"
 description = "The pax package manager backend"
-version = "2.0.5"
+version = "2.0.14"
 authors = [
   "Lleyton <lleyton@innatical.com>"
 ]
