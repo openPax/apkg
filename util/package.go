@@ -148,6 +148,8 @@ func InspectPackage(tarball string) (*PackageRoot, error) {
 	return nil, &ErrorString{S: "package.toml not found"}
 }
 
+var globalSideEffectLock sync.Mutex
+
 func InstallFiles(root string, pkgPath string, pkg *PackageRoot) error {
 	for k, v := range pkg.Files {
 		info, err := os.Stat(filepath.Join(pkgPath, v))
@@ -319,6 +321,7 @@ func Install(root string, packageFile string) error {
 		if err := os.Chmod(filepath.Join(installationPath, pkg.Hooks.Preinstall), 0755); err != nil {
 			return err
 		}
+		globalSideEffectLock.Lock()
 		cmd := exec.Command(filepath.Join(installationPath, pkg.Hooks.Preinstall))
 
 		cmd.Stdout = os.Stdout
@@ -327,8 +330,11 @@ func Install(root string, packageFile string) error {
 		cmd.Dir = installationPath
 
 		if err := cmd.Run(); err != nil {
+			globalSideEffectLock.Unlock()
 			return err
 		}
+
+		globalSideEffectLock.Unlock()
 	}
 
 	if err := InstallFiles(root, installationPath, pkg); err != nil {
@@ -345,6 +351,7 @@ func Install(root string, packageFile string) error {
 		if err := os.Chmod(filepath.Join(installationPath, pkg.Hooks.Postinstall), 0755); err != nil {
 			return err
 		}
+		globalSideEffectLock.Lock()
 		cmd := exec.Command(filepath.Join(installationPath, pkg.Hooks.Postinstall))
 
 		cmd.Stdout = os.Stdout
@@ -353,11 +360,69 @@ func Install(root string, packageFile string) error {
 		cmd.Dir = installationPath
 
 		if err := cmd.Run(); err != nil {
+			globalSideEffectLock.Unlock()
 			return err
 		}
+		globalSideEffectLock.Unlock()
 	}
 
 	return nil
+}
+
+func WorkerReady(point *dag.Vertex, state map[string]string) bool {
+	for _, dep := range point.Parents.Values() {
+		if op, ok := state[dep.(*dag.Vertex).ID]; !ok || op != "done" {
+			return false
+		}
+	}
+
+	return true
+}
+
+func InstallWorker(root string, point *dag.Vertex, wg *sync.WaitGroup, state map[string]string, stateLock *sync.Mutex, fatalErrors chan error, completedEvent *sync.Cond) {
+	wg.Add(1)
+
+	go func() {
+		defer wg.Done()
+
+		stateLock.Lock()
+		_, ok := state[point.ID]
+		if ok {
+			stateLock.Unlock()
+			return
+		}
+
+		state[point.ID] = "working"
+		stateLock.Unlock()
+
+
+		for {
+			stateLock.Lock()
+			ready := WorkerReady(point, state)
+			stateLock.Unlock()
+
+			if ready {
+				break
+			}
+
+			completedEvent.Wait()
+		}
+
+		if err := Install(root, point.ID); err != nil {
+			fatalErrors <- err
+			return
+		}
+
+		stateLock.Lock()
+		state[point.ID] = "done"
+		stateLock.Unlock()
+
+		completedEvent.Broadcast()
+
+		for _, child := range point.Children.Values() {
+			InstallWorker(root, child.(*dag.Vertex), wg, state, stateLock, fatalErrors, completedEvent)
+		}
+	}()
 }
 
 func InstallMultiple(root string, packageFiles []string) error {
@@ -513,35 +578,17 @@ func InstallMultiple(root string, packageFiles []string) error {
 		}
 	}
 
-	// TODO: Traverse the graph and install packages safely
-
 	fatalErrors := make(chan error)
 	wgDone := make(chan bool)
+	state := make(map[string]string)
 	var wg sync.WaitGroup
-	var state sync.Map
+	var stateLock sync.Mutex
+	var cond sync.Cond
 	
 	entryPoints := packages.SourceVertices()
 
 	for _, point := range entryPoints {
-		point := point
-		
-		wg.Add(1)
-
-		go func() {
-			state.Store(point.ID, "working")
-
-			defer wg.Done()
-			if err := Install(root, point.ID); err != nil {
-				fatalErrors <- err
-				return
-			}
-
-			state.Store(point.ID, "done")
-
-			for child := point.Children.Values() {
-
-			}
-		}()
+		InstallWorker(root, point, &wg, state, &stateLock, fatalErrors, &cond)
 	}
 
 	go func() {
@@ -558,7 +605,7 @@ func InstallMultiple(root string, packageFiles []string) error {
 			return err
 	}
 
-	return &ErrorString{S: "WIP"}
+	return nil
 }
 
 func Remove(root string, packageName string) error {
@@ -596,6 +643,7 @@ func Remove(root string, packageName string) error {
 		if err := os.Chmod(filepath.Join(installationPath, pkg.Hooks.Preremove), 0755); err != nil {
 			return err
 		}
+		globalSideEffectLock.Lock()
 		cmd := exec.Command(filepath.Join(installationPath, pkg.Hooks.Preremove))
 
 		cmd.Stdout = os.Stdout
@@ -604,8 +652,10 @@ func Remove(root string, packageName string) error {
 		cmd.Dir = installationPath
 
 		if err := cmd.Run(); err != nil {
+			globalSideEffectLock.Unlock()
 			return err
 		}
+		globalSideEffectLock.Unlock()
 	}
 
 	if err := RemoveFiles(root, installationPath, pkg); err != nil {
@@ -616,6 +666,7 @@ func Remove(root string, packageName string) error {
 		if err := os.Chmod(filepath.Join(installationPath, pkg.Hooks.Postremove), 0755); err != nil {
 			return err
 		}
+		globalSideEffectLock.Lock()
 		cmd := exec.Command(filepath.Join(installationPath, pkg.Hooks.Postremove))
 
 		cmd.Stdout = os.Stdout
@@ -624,8 +675,10 @@ func Remove(root string, packageName string) error {
 		cmd.Dir = installationPath
 
 		if err := cmd.Run(); err != nil {
+			globalSideEffectLock.Unlock()
 			return err
 		}
+		globalSideEffectLock.Unlock()
 	}
 
 	if err := os.RemoveAll(installationPath); err != nil {
