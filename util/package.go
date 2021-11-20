@@ -30,6 +30,7 @@ type Package struct {
 	Name        string   `toml:"name"`
 	Description string   `toml:"description"`
 	Version     string   `toml:"version"`
+	Priority    string   `toml:"priority"`
 	Authors     []string `toml:"authors"`
 	Maintainers []string `toml:"maintainers"`
 }
@@ -395,7 +396,6 @@ func InstallWorker(root string, point *dag.Vertex, wg *sync.WaitGroup, state map
 		state[point.ID] = "working"
 		stateLock.Unlock()
 
-
 		for {
 			stateLock.Lock()
 			ready := WorkerReady(point, state)
@@ -457,7 +457,7 @@ func InstallMultiple(root string, packageFiles []string) error {
 
 		pkg := vertex.Value.(*PackageRoot)
 
-		REQUIRED:
+	REQUIRED:
 		for i := range pkg.Dependencies.Required {
 			dependency := pkg.Dependencies.Required[i]
 			splitdep := strings.Split(dependency, "@")
@@ -517,7 +517,7 @@ func InstallMultiple(root string, packageFiles []string) error {
 			return &ErrorString{S: "Dependency not found: " + dependency}
 		}
 
-		OPTIONAL:
+	OPTIONAL:
 		for i := range pkg.Dependencies.Optional {
 			dependency := pkg.Dependencies.Optional[i]
 			splitdep := strings.Split(dependency, "@")
@@ -584,7 +584,7 @@ func InstallMultiple(root string, packageFiles []string) error {
 	var wg sync.WaitGroup
 	var stateLock sync.Mutex
 	var cond sync.Cond
-	
+
 	entryPoints := packages.SourceVertices()
 
 	for _, point := range entryPoints {
@@ -595,20 +595,19 @@ func InstallMultiple(root string, packageFiles []string) error {
 		wg.Wait()
 		close(wgDone)
 	}()
-	
 
 	select {
-		case <- wgDone:
-			break
-		case err := <- fatalErrors:
-			close(fatalErrors)
-			return err
+	case <-wgDone:
+		break
+	case err := <-fatalErrors:
+		close(fatalErrors)
+		return err
 	}
 
 	return nil
 }
 
-func Remove(root string, packageName string) error {
+func Remove(root string, packageName string, coreRemoval bool) error {
 	if err := os.MkdirAll(root, 0755); err != nil {
 		return err
 	}
@@ -617,6 +616,10 @@ func Remove(root string, packageName string) error {
 
 	if err != nil {
 		return err
+	}
+
+	if db.Packages[packageName].Package.Priority == "Core" && !coreRemoval {
+		return &ErrorString{S: "Cannot remove core package without explicit command line flag"}
 	}
 
 	if _, ok := db.Packages[packageName]; !ok {

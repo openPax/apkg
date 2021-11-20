@@ -44,7 +44,13 @@ func main() {
 				Usage:     "Remove a package",
 				UsageText: "apkg remove <package name>",
 				Aliases:   []string{"r"},
-				Action:    cmd.Remove,
+				Flags: []cli.Flag{
+					&cli.BoolFlag{
+						Name:  "remove-core-this-will-probably-break-my-system",
+						Usage: "Allows removal of Core packages",
+					},
+				},
+				Action: cmd.Remove,
 			},
 			{
 				Name:      "list",
