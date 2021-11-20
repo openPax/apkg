@@ -5,7 +5,8 @@ name = "apkg"
 description = "The pax package manager backend"
 version = "2.0.14"
 authors = [
-  "Lleyton <lleyton@innatical.com>"
+  "Lleyton <lleyton@innatical.com>",
+  "Jamie Thalacker <hello@jamiethalacker.dev>"
 ]
 maintainers = [
   "Lleyton <lleyton@innatical.com>"
