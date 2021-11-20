@@ -60,12 +60,6 @@ func main() {
 				Action:    cmd.List,
 			},
 			{
-				Name:      "verify",
-				Usage:     "Verify the authenticity of a package",
-				UsageText: "apkg verify <package file> <SHA256 checksum>",
-				Action:    cmd.Verify,
-			},
-			{
 				Name:      "info",
 				Usage:     "Get the information for a package",
 				UsageText: "apkg info <package file|package name>",
