@@ -13,6 +13,7 @@ import (
 
 	"github.com/Masterminds/semver"
 	"github.com/goombaio/dag"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/BurntSushi/toml"
 	"github.com/klauspost/compress/zstd"
@@ -416,17 +417,13 @@ func WorkerReady(point *dag.Vertex, state map[string]string) bool {
 	return true
 }
 
-func InstallWorker(root string, point *dag.Vertex, wg *sync.WaitGroup, state map[string]string, stateLock *sync.Mutex, fatalErrors chan error, completedEvent *sync.Cond) {
-	wg.Add(1)
-
-	go func() {
-		defer wg.Done()
-
+func InstallWorker(root string, point *dag.Vertex, group *errgroup.Group, state map[string]string, stateLock *sync.Mutex, completedEvent *sync.Cond) {
+	group.Go(func() error {
 		stateLock.Lock()
 		_, ok := state[point.ID]
 		if ok {
 			stateLock.Unlock()
-			return
+			return nil
 		}
 
 		state[point.ID] = "working"
@@ -445,8 +442,7 @@ func InstallWorker(root string, point *dag.Vertex, wg *sync.WaitGroup, state map
 		}
 
 		if err := Install(root, point.ID); err != nil {
-			fatalErrors <- err
-			return
+			return err
 		}
 
 		stateLock.Lock()
@@ -456,9 +452,11 @@ func InstallWorker(root string, point *dag.Vertex, wg *sync.WaitGroup, state map
 		completedEvent.Broadcast()
 
 		for _, child := range point.Children.Values() {
-			InstallWorker(root, child.(*dag.Vertex), wg, state, stateLock, fatalErrors, completedEvent)
+			InstallWorker(root, child.(*dag.Vertex), group, state, stateLock, completedEvent)
 		}
-	}()
+
+		return nil
+	})
 }
 
 func InstallMultiple(root string, packageFiles []string) error {
@@ -622,29 +620,18 @@ func InstallMultiple(root string, packageFiles []string) error {
 		return nil
 	}
 
-	fatalErrors := make(chan error)
-	wgDone := make(chan bool)
+	group := new(errgroup.Group)
 	state := make(map[string]string)
-	var wg sync.WaitGroup
 	var stateLock sync.Mutex
 	var cond sync.Cond
 
 	entryPoints := packages.SourceVertices()
 
 	for _, point := range entryPoints {
-		InstallWorker(root, point, &wg, state, &stateLock, fatalErrors, &cond)
+		InstallWorker(root, point, group, state, &stateLock, &cond)
 	}
 
-	go func() {
-		wg.Wait()
-		close(wgDone)
-	}()
-
-	select {
-	case <-wgDone:
-		break
-	case err := <-fatalErrors:
-		close(fatalErrors)
+	if err := group.Wait(); err != nil {
 		return err
 	}
 
