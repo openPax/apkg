@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -137,7 +138,7 @@ func InspectPackage(tarball string) (*PackageRoot, error) {
 			return nil, err
 		}
 
-		if header.Name == "package.toml" {
+		if path.Clean(header.Name) == "package.toml" {
 			var pkg PackageRoot
 
 			if _, err := toml.DecodeReader(tarReader, &pkg); err != nil {
