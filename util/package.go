@@ -409,7 +409,7 @@ func Install(root string, packageFile string) error {
 }
 
 func WorkerReady(point *dag.Vertex, state map[string]string) bool {
-	for _, dep := range point.Parents.Values() {
+	for _, dep := range point.Children.Values() {
 		if op, ok := state[dep.(*dag.Vertex).ID]; !ok || op != "done" {
 			return false
 		}
@@ -452,7 +452,7 @@ func InstallWorker(root string, point *dag.Vertex, group *errgroup.Group, state 
 
 		completedEvent.Broadcast()
 
-		for _, child := range point.Children.Values() {
+		for _, child := range point.Parents.Values() {
 			InstallWorker(root, child.(*dag.Vertex), group, state, stateLock, completedEvent)
 		}
 
@@ -624,12 +624,14 @@ func InstallMultiple(root string, packageFiles []string) error {
 	group := new(errgroup.Group)
 	state := make(map[string]string)
 	var stateLock sync.Mutex
-	var cond sync.Cond
+	condLock := sync.Mutex{}
+	condLock.Lock()
+	cond := sync.NewCond(&condLock)
 
-	entryPoints := packages.SourceVertices()
+	entryPoints := packages.SinkVertices()
 
 	for _, point := range entryPoints {
-		InstallWorker(root, point, group, state, &stateLock, &cond)
+		InstallWorker(root, point, group, state, &stateLock, cond)
 	}
 
 	if err := group.Wait(); err != nil {
